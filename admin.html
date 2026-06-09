@@ -142,7 +142,7 @@ header{
   <div class="header-right">
     <span class="save-status" id="save-status"></span>
     <button class="btn btn-add" id="add-btn">＋ 音を追加</button>
-    <button class="btn btn-save" id="save-btn" disabled>Google Driveに保存</button>
+    <button class="btn btn-save" id="save-btn" disabled>保存 → coords.jsonをダウンロード</button>
   </div>
 </header>
 
@@ -174,8 +174,8 @@ header{
 <script>
 // =============================
 // ここだけ書き換えてください
-const FOLDER_ID = "1Lf7oH1PlaZwOpiLdknjGMUiX7m9qjrSH";
-const CLIENT_ID = "1098214416585-ud07t2m49tifqou1sl1rlkia6jjdof3a.apps.googleusercontent.com";
+const FOLDER_ID = "ここにDriveフォルダIDを入れる";
+const CLIENT_ID = "ここにクライアントIDを入れる";
 // =============================
 
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
@@ -271,35 +271,22 @@ window.deleteSound = function(id) {
 };
 
 // 保存
-document.getElementById("save-btn").addEventListener("click", async () => {
-  const btn = document.getElementById("save-btn");
+document.getElementById("save-btn").addEventListener("click", () => {
   const status = document.getElementById("save-status");
-  btn.disabled = true;
-  status.textContent = "保存中...";
   try {
     const json = JSON.stringify(sounds, null, 2);
     const blob = new Blob([json], { type: "application/json" });
-    if (coordsFileId) {
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${coordsFileId}?uploadType=media`, {
-        method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" }, body: blob
-      });
-    } else {
-      const meta = await fetch("https://www.googleapis.com/drive/v3/files", {
-        method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "coords.json", parents: [FOLDER_ID] })
-      });
-      const metaData = await meta.json();
-      coordsFileId = metaData.id;
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${coordsFileId}?uploadType=media`, {
-        method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" }, body: blob
-      });
-    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "coords.json";
+    a.click();
+    URL.revokeObjectURL(url);
     isDirty = false;
-    status.textContent = "✓ 保存しました";
-    setTimeout(() => { status.textContent = ""; }, 3000);
-  } catch (e) {
-    status.textContent = "保存失敗: " + e.message;
-    btn.disabled = false;
+    status.textContent = "✓ ダウンロードしました。GitHubにアップしてください。";
+    setTimeout(() => { status.textContent = ""; }, 5000);
+  } catch(e) {
+    status.textContent = "エラー: " + e.message;
   }
 });
 

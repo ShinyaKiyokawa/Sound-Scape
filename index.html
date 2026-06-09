@@ -97,14 +97,7 @@ header .sub{font-size:12px;color:var(--muted);letter-spacing:.05em;text-transfor
 </div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// =============================
-// ここだけ書き換えてください
-const FOLDER_ID = "1Lf7oH1PlaZwOpiLdknjGMUiX7m9qjrSH";
-const CLIENT_ID = "1098214416585-ud07t2m49tifqou1sl1rlkia6jjdof3a.apps.googleusercontent.com";
-// =============================
-
-const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
-const SCOPES = "https://www.googleapis.com/auth/drive.readonly";
+const COORDS_URL = "https://ShinyaKiyokawa.github.io/Sound-Scape/coords.json";
 
 let sounds = [];
 let currentAudio = null, currentId = null;
@@ -195,40 +188,17 @@ function buildMarkers() {
   document.getElementById("loading").style.display = "none";
 }
 
-async function loadFromDrive(token) {
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+name='coords.json'&fields=files(id)`,
-    { headers: { Authorization: "Bearer " + token } }
-  );
-  const data = await res.json();
-  if (!data.files || data.files.length === 0) {
-    document.getElementById("loading").textContent = "データが見つかりません。管理画面から保存してください。";
-    return;
+async function init() {
+  try {
+    const res = await fetch(COORDS_URL + "?t=" + Date.now());
+    sounds = await res.json();
+    buildMarkers();
+  } catch(e) {
+    document.getElementById("loading").textContent = "データを読み込めませんでした: " + e.message;
   }
-  const fileId = data.files[0].id;
-  const fileRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers: { Authorization: "Bearer " + token } }
-  );
-  sounds = await fileRes.json();
-  buildMarkers();
 }
 
-async function initGapi() {
-  await new Promise(r => { const s = document.createElement("script"); s.src = "https://apis.google.com/js/api.js"; s.onload = r; document.head.appendChild(s); });
-  await new Promise(r => gapi.load("client", r));
-  await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
-  await new Promise(r => { const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.onload = r; document.head.appendChild(s); });
-  const tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID, scope: SCOPES,
-    callback: async (resp) => { if (resp.access_token) await loadFromDrive(resp.access_token); }
-  });
-  tokenClient.requestAccessToken({ prompt: "" });
-}
-
-initGapi().catch(e => {
-  document.getElementById("loading").textContent = "読み込みエラー: " + e.message;
-});
+init();
 </script>
 </body>
 </html>
