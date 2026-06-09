@@ -131,7 +131,7 @@ header{
 </head>
 <body>
 <div id="loading-overlay">
-  <div>Googleにログイン中...</div>
+  <div>読み込み中...</div>
 </div>
 
 <header>
@@ -172,18 +172,9 @@ header{
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// =============================
-// ここだけ書き換えてください
-const FOLDER_ID = "ここにDriveフォルダIDを入れる";
-const CLIENT_ID = "ここにクライアントIDを入れる";
-// =============================
-
-const SCOPES = "https://www.googleapis.com/auth/drive.file";
-const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
+const COORDS_URL = "https://ShinyaKiyokawa.github.io/Sound-Scape/coords.json";
 
 let sounds = [];
-let accessToken = null;
-let coordsFileId = null;
 let isDirty = false;
 const leafletMarkers = {};
 
@@ -329,42 +320,18 @@ document.getElementById("modal-ok").addEventListener("click", async () => {
   setDirty();
 });
 
-// Drive から既存データ読み込み
-async function loadExisting() {
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+name='coords.json'&fields=files(id)`,
-    { headers: { Authorization: "Bearer " + accessToken } }
-  );
-  const data = await res.json();
-  if (data.files && data.files.length > 0) {
-    coordsFileId = data.files[0].id;
-    const fileRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${coordsFileId}?alt=media`,
-      { headers: { Authorization: "Bearer " + accessToken } }
-    );
-    sounds = await fileRes.json();
+async function init() {
+  try {
+    const res = await fetch(COORDS_URL + "?t=" + Date.now());
+    sounds = await res.json();
+  } catch(e) {
+    sounds = [];
   }
   buildMarkers();
   document.getElementById("loading-overlay").style.display = "none";
 }
 
-async function initGapi() {
-  await new Promise(r => { const s = document.createElement("script"); s.src = "https://apis.google.com/js/api.js"; s.onload = r; document.head.appendChild(s); });
-  await new Promise(r => gapi.load("client", r));
-  await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
-  await new Promise(r => { const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.onload = r; document.head.appendChild(s); });
-  const tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID, scope: SCOPES,
-    callback: async (resp) => {
-      if (resp.access_token) { accessToken = resp.access_token; await loadExisting(); }
-    }
-  });
-  tokenClient.requestAccessToken({ prompt: "" });
-}
-
-initGapi().catch(e => {
-  document.getElementById("loading-overlay").innerHTML = `<div>エラー: ${e.message}</div>`;
-});
+init();
 </script>
 </body>
 </html>
