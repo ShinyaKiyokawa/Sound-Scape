@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理画面 — 上野サウンドスケープ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e0e;--surface:#181818;--border:rgba(255,255,255,0.08);
+  --text:#f0f0f0;--muted:#888;--accent:#5DCAA5;--accent-dark:#1D9E75;
+  --edit:#f5c842;--danger:#e05555;
+  --font:'Helvetica Neue','Hiragino Sans','Noto Sans JP',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font)}
+header{
+  padding:14px 20px;border-bottom:0.5px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--surface);
+}
+.header-left h1{font-size:16px;font-weight:500}
+.header-left .sub{font-size:11px;color:var(--muted);margin-top:2px}
+.header-right{display:flex;gap:8px;align-items:center}
+.btn{
+  padding:8px 16px;border-radius:20px;border:none;
+  font-size:12px;font-weight:500;font-family:var(--font);cursor:pointer;transition:all .2s;
+}
+.btn-save{background:var(--accent-dark);color:white}
+.btn-save:hover{background:var(--accent)}
+.btn-save:disabled{background:#333;color:var(--muted);cursor:not-allowed}
+.btn-add{background:rgba(245,200,66,.12);color:var(--edit);border:0.5px solid rgba(245,200,66,.3)}
+.btn-add:hover{background:rgba(245,200,66,.22)}
+.save-status{font-size:11px;color:var(--accent)}
+#map{width:100%;height:calc(100vh - 60px - 280px);min-height:300px}
+.leaflet-tile{filter:invert(1) hue-rotate(180deg) brightness(.85) saturate(.7)}
+.leaflet-control-attribution{display:none}
+.leaflet-bar a{background:var(--surface)!important;color:var(--text)!important;border:0.5px solid var(--border)!important}
+.sound-marker{
+  width:44px;height:44px;border-radius:50%;
+  background:#6a5800;border:2.5px solid var(--edit);
+  display:flex;align-items:center;justify-content:center;
+  cursor:grab;box-shadow:0 3px 12px rgba(0,0,0,.5);position:relative;
+}
+.sound-marker:hover{background:#8a7210}
+.sound-marker svg{width:20px;height:20px;fill:white}
+.drag-badge{
+  position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;
+  background:var(--edit);font-size:9px;font-weight:700;color:#1a1400;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+}
+.leaflet-popup-content-wrapper{
+  background:#1e1e1e!important;color:var(--text)!important;border-radius:12px!important;
+  border:0.5px solid rgba(245,200,66,.2)!important;box-shadow:0 8px 32px rgba(0,0,0,.6)!important;padding:0!important;
+}
+.leaflet-popup-tip-container{display:none}
+.leaflet-popup-content{margin:0!important;width:auto!important}
+.popup-edit{padding:14px 16px 12px;min-width:220px}
+.popup-edit .pname{font-size:13px;font-weight:500;color:var(--edit);margin-bottom:8px}
+.popup-edit label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+.popup-edit input{
+  width:100%;background:#2a2a2a;border:0.5px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:12px;font-family:var(--font);padding:7px 10px;margin-bottom:8px;
+}
+.popup-edit input:focus{outline:none;border-color:rgba(245,200,66,.4)}
+.popup-edit .coord-val{font-size:11px;color:var(--muted);font-family:monospace;margin-bottom:10px}
+.popup-edit .del-btn{
+  width:100%;padding:7px;border-radius:7px;border:none;
+  background:rgba(224,85,85,.12);color:#e08888;font-size:12px;font-family:var(--font);cursor:pointer;
+}
+.popup-edit .del-btn:hover{background:rgba(224,85,85,.22)}
+/* sound list panel */
+#panel{
+  height:280px;overflow-y:auto;border-top:0.5px solid var(--border);
+  background:var(--surface);
+}
+.panel-header{
+  padding:10px 20px;font-size:11px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;border-bottom:0.5px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.sound-row{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 20px;border-bottom:0.5px solid var(--border);
+  transition:background .15s;
+}
+.sound-row:hover{background:rgba(255,255,255,.03)}
+.row-num{font-size:11px;color:var(--muted);min-width:20px;text-align:center}
+.row-info{flex:1}
+.row-name{font-size:13px;font-weight:500}
+.row-desc{font-size:11px;color:var(--muted)}
+.row-coord{font-size:10px;color:var(--muted);font-family:monospace}
+.row-file{font-size:11px;color:var(--accent)}
+.upload-btn{
+  padding:5px 10px;border-radius:6px;border:0.5px solid var(--border);
+  background:transparent;color:var(--muted);font-size:11px;font-family:var(--font);cursor:pointer;
+}
+.upload-btn:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+/* add modal */
+#modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
+  align-items:center;justify-content:center;z-index:9999;
+}
+#modal-overlay.visible{display:flex}
+#modal{
+  background:#1e1e1e;border:0.5px solid var(--border);border-radius:16px;
+  padding:24px;width:320px;
+}
+#modal h2{font-size:15px;font-weight:500;margin-bottom:16px}
+#modal label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px;margin-top:10px}
+#modal input{
+  width:100%;background:#2a2a2a;border:0.5px solid var(--border);border-radius:6px;
+  color:var(--text);font-size:13px;font-family:var(--font);padding:9px 12px;
+}
+#modal input:focus{outline:none;border-color:rgba(93,202,165,.4)}
+.modal-actions{display:flex;gap:8px;margin-top:20px}
+.modal-actions button{flex:1;padding:10px;border-radius:8px;border:none;font-size:13px;font-family:var(--font);cursor:pointer}
+.modal-cancel{background:#2a2a2a;color:var(--muted)}
+.modal-ok{background:var(--accent-dark);color:white;font-weight:500}
+#loading-overlay{
+  position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+  justify-content:center;font-size:14px;color:var(--muted);z-index:9999;flex-direction:column;gap:12px;
+}
+</style>
+</head>
+<body>
+<div id="loading-overlay">
+  <div>Googleにログイン中...</div>
+</div>
+
+<header>
+  <div class="header-left">
+    <h1>管理画面 — 上野サウンドスケープ</h1>
+    <div class="sub">マーカーをドラッグして位置を調整 → 保存</div>
+  </div>
+  <div class="header-right">
+    <span class="save-status" id="save-status"></span>
+    <button class="btn btn-add" id="add-btn">＋ 音を追加</button>
+    <button class="btn btn-save" id="save-btn" disabled>Google Driveに保存</button>
+  </div>
+</header>
+
+<div id="map"></div>
+<div id="panel">
+  <div class="panel-header">収録ポイント一覧</div>
+  <div id="sound-list"></div>
+</div>
+
+<!-- 追加モーダル -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h2>収録ポイントを追加</h2>
+    <label>場所の名前</label>
+    <input type="text" id="m-name" placeholder="例：不忍池">
+    <label>説明</label>
+    <input type="text" id="m-desc" placeholder="例：カモと水音">
+    <label>音声ファイル</label>
+    <input type="file" id="m-file" accept="audio/*,.m4a,.mp3,.wav">
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">iPhoneのm4aファイルをそのまま選択できます</div>
+    <div class="modal-actions">
+      <button class="modal-cancel" id="modal-cancel">キャンセル</button>
+      <button class="modal-ok" id="modal-ok">追加</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// =============================
+// ここだけ書き換えてください
+const FOLDER_ID = "1Lf7oH1PlaZwOpiLdknjGMUiX7m9qjrSH";
+const CLIENT_ID = "1098214416585-ud07t2m49tifqou1sl1rlkia6jjdof3a.apps.googleusercontent.com";
+// =============================
+
+const SCOPES = "https://www.googleapis.com/auth/drive.file";
+const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
+
+let sounds = [];
+let accessToken = null;
+let coordsFileId = null;
+let isDirty = false;
+const leafletMarkers = {};
+
+const map = L.map("map").setView([35.7135, 139.7745], 15);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+
+const spkSVG = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`;
+
+function setDirty() {
+  isDirty = true;
+  document.getElementById("save-btn").disabled = false;
+  document.getElementById("save-status").textContent = "未保存の変更あり";
+}
+
+function buildMarkers() {
+  Object.values(leafletMarkers).forEach(m => m.remove());
+  Object.keys(leafletMarkers).forEach(k => delete leafletMarkers[k]);
+  sounds.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "sound-marker";
+    el.innerHTML = spkSVG + `<div class="drag-badge">✥</div>`;
+    const marker = L.marker([s.lat, s.lng], {
+      draggable: true,
+      icon: L.divIcon({ className: "", html: el, iconSize: [44, 44], iconAnchor: [22, 22], popupAnchor: [0, -28] })
+    }).addTo(map);
+
+    function openEditPopup() {
+      marker.setPopupContent(`
+        <div class="popup-edit">
+          <div class="pname">${s.name}</div>
+          <label>場所の名前</label>
+          <input id="pe-name-${s.id}" value="${s.name}">
+          <label>説明</label>
+          <input id="pe-desc-${s.id}" value="${s.desc}">
+          <div class="coord-val" id="pe-coord-${s.id}">${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}</div>
+          <button class="del-btn" onclick="deleteSound(${s.id})">🗑 このポイントを削除</button>
+        </div>`);
+      marker.openPopup();
+      setTimeout(() => {
+        const nameEl = document.getElementById("pe-name-" + s.id);
+        const descEl = document.getElementById("pe-desc-" + s.id);
+        if (nameEl) nameEl.addEventListener("input", e => { s.name = e.target.value; setDirty(); refreshList(); });
+        if (descEl) descEl.addEventListener("input", e => { s.desc = e.target.value; setDirty(); refreshList(); });
+      }, 100);
+    }
+
+    marker.on("dragstart", () => marker.closePopup());
+    marker.on("drag", () => {
+      const ll = marker.getLatLng();
+      s.lat = parseFloat(ll.lat.toFixed(6));
+      s.lng = parseFloat(ll.lng.toFixed(6));
+      const cv = document.getElementById("pe-coord-" + s.id);
+      if (cv) cv.textContent = `${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}`;
+      refreshList();
+    });
+    marker.on("dragend", () => { setDirty(); openEditPopup(); });
+    el.addEventListener("click", openEditPopup);
+    leafletMarkers[s.id] = marker;
+  });
+  refreshList();
+}
+
+function refreshList() {
+  const list = document.getElementById("sound-list");
+  list.innerHTML = sounds.map((s, i) => `
+    <div class="sound-row">
+      <div class="row-num">${i + 1}</div>
+      <div class="row-info">
+        <div class="row-name">${s.name}</div>
+        <div class="row-desc">${s.desc}</div>
+        <div class="row-coord">${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}</div>
+        <div class="row-file">${s.fileName || "音声なし"}</div>
+      </div>
+    </div>`).join("");
+}
+
+window.deleteSound = function(id) {
+  if (!confirm("このポイントを削除しますか？")) return;
+  const marker = leafletMarkers[id];
+  if (marker) { marker.closePopup(); marker.remove(); delete leafletMarkers[id]; }
+  sounds = sounds.filter(s => s.id !== id);
+  setDirty();
+  refreshList();
+};
+
+// 保存
+document.getElementById("save-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("save-btn");
+  const status = document.getElementById("save-status");
+  btn.disabled = true;
+  status.textContent = "保存中...";
+  try {
+    const json = JSON.stringify(sounds, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    if (coordsFileId) {
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${coordsFileId}?uploadType=media`, {
+        method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" }, body: blob
+      });
+    } else {
+      const meta = await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "coords.json", parents: [FOLDER_ID] })
+      });
+      const metaData = await meta.json();
+      coordsFileId = metaData.id;
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${coordsFileId}?uploadType=media`, {
+        method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" }, body: blob
+      });
+    }
+    isDirty = false;
+    status.textContent = "✓ 保存しました";
+    setTimeout(() => { status.textContent = ""; }, 3000);
+  } catch (e) {
+    status.textContent = "保存失敗: " + e.message;
+    btn.disabled = false;
+  }
+});
+
+// 音を追加
+document.getElementById("add-btn").addEventListener("click", () => {
+  document.getElementById("modal-overlay").classList.add("visible");
+});
+document.getElementById("modal-cancel").addEventListener("click", () => {
+  document.getElementById("modal-overlay").classList.remove("visible");
+});
+document.getElementById("modal-ok").addEventListener("click", async () => {
+  const name = document.getElementById("m-name").value.trim();
+  const desc = document.getElementById("m-desc").value.trim();
+  const file = document.getElementById("m-file").files[0];
+  if (!name) { alert("場所の名前を入力してください"); return; }
+
+  const center = map.getCenter();
+  const newSound = {
+    id: Date.now(),
+    name, desc: desc || "",
+    lat: parseFloat(center.lat.toFixed(6)),
+    lng: parseFloat(center.lng.toFixed(6)),
+    fileName: file ? file.name : "",
+    audioUrl: ""
+  };
+
+  if (file && accessToken) {
+    const status = document.getElementById("save-status");
+    status.textContent = "音声ファイルをアップロード中...";
+    const meta = await fetch("https://www.googleapis.com/drive/v3/files", {
+      method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: file.name, parents: [FOLDER_ID] })
+    });
+    const metaData = await meta.json();
+    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${metaData.id}?uploadType=media`, {
+      method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": file.type || "audio/mp4" }, body: file
+    });
+    await fetch(`https://www.googleapis.com/drive/v3/files/${metaData.id}/permissions`, {
+      method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "reader", type: "anyone" })
+    });
+    newSound.audioUrl = `https://drive.google.com/uc?export=download&id=${metaData.id}`;
+    status.textContent = "";
+  }
+
+  sounds.push(newSound);
+  document.getElementById("modal-overlay").classList.remove("visible");
+  document.getElementById("m-name").value = "";
+  document.getElementById("m-desc").value = "";
+  document.getElementById("m-file").value = "";
+  buildMarkers();
+  setDirty();
+});
+
+// Drive から既存データ読み込み
+async function loadExisting() {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+name='coords.json'&fields=files(id)`,
+    { headers: { Authorization: "Bearer " + accessToken } }
+  );
+  const data = await res.json();
+  if (data.files && data.files.length > 0) {
+    coordsFileId = data.files[0].id;
+    const fileRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${coordsFileId}?alt=media`,
+      { headers: { Authorization: "Bearer " + accessToken } }
+    );
+    sounds = await fileRes.json();
+  }
+  buildMarkers();
+  document.getElementById("loading-overlay").style.display = "none";
+}
+
+async function initGapi() {
+  await new Promise(r => { const s = document.createElement("script"); s.src = "https://apis.google.com/js/api.js"; s.onload = r; document.head.appendChild(s); });
+  await new Promise(r => gapi.load("client", r));
+  await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
+  await new Promise(r => { const s = document.createElement("script"); s.src = "https://accounts.google.com/gsi/client"; s.onload = r; document.head.appendChild(s); });
+  const tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.access_token) { accessToken = resp.access_token; await loadExisting(); }
+    }
+  });
+  tokenClient.requestAccessToken({ prompt: "" });
+}
+
+initGapi().catch(e => {
+  document.getElementById("loading-overlay").innerHTML = `<div>エラー: ${e.message}</div>`;
+});
+</script>
+</body>
+</html>
