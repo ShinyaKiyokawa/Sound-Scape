@@ -96,6 +96,12 @@ header{
   background:transparent;color:var(--muted);font-size:11px;font-family:var(--font);cursor:pointer;
 }
 .upload-btn:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+.del-row-btn{
+  padding:6px 10px;border-radius:6px;border:none;
+  background:rgba(224,85,85,.12);color:#e08888;font-size:14px;
+  cursor:pointer;flex-shrink:0;
+}
+.del-row-btn:hover{background:rgba(224,85,85,.28)}
 /* add modal */
 #modal-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
@@ -168,8 +174,8 @@ header{
 <script>
 // =============================
 // ここだけ書き換えてください
-const FOLDER_ID = "1Lf7oH1PlaZwOpiLdknjGMUiX7m9qjrSH";
-const CLIENT_ID = "1098214416585-ud07t2m49tifqou1sl1rlkia6jjdof3a.apps.googleusercontent.com";
+const FOLDER_ID = "ここにDriveフォルダIDを入れる";
+const CLIENT_ID = "ここにクライアントIDを入れる";
 // =============================
 
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
@@ -251,6 +257,7 @@ function refreshList() {
         <div class="row-coord">${s.lat.toFixed(6)}, ${s.lng.toFixed(6)}</div>
         <div class="row-file">${s.fileName || "音声なし"}</div>
       </div>
+      <button class="del-row-btn" onclick="deleteSound(${s.id})">🗑</button>
     </div>`).join("");
 }
 
