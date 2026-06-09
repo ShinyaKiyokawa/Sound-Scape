@@ -168,8 +168,8 @@ header{
 <script>
 // =============================
 // ここだけ書き換えてください
-const FOLDER_ID = "1Lf7oH1PlaZwOpiLdknjGMUiX7m9qjrSH";
-const CLIENT_ID = "1098214416585-ud07t2m49tifqou1sl1rlkia6jjdof3a.apps.googleusercontent.com";
+const FOLDER_ID = "ここにDriveフォルダIDを入れる";
+const CLIENT_ID = "ここにクライアントIDを入れる";
 // =============================
 
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
@@ -319,23 +319,11 @@ document.getElementById("modal-ok").addEventListener("click", async () => {
     audioUrl: ""
   };
 
-  if (file && accessToken) {
-    const status = document.getElementById("save-status");
-    status.textContent = "音声ファイルをアップロード中...";
-    const meta = await fetch("https://www.googleapis.com/drive/v3/files", {
-      method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ name: file.name, parents: [FOLDER_ID] })
-    });
-    const metaData = await meta.json();
-    await fetch(`https://www.googleapis.com/upload/drive/v3/files/${metaData.id}?uploadType=media`, {
-      method: "PATCH", headers: { Authorization: "Bearer " + accessToken, "Content-Type": file.type || "audio/mp4" }, body: file
-    });
-    await fetch(`https://www.googleapis.com/drive/v3/files/${metaData.id}/permissions`, {
-      method: "POST", headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ role: "reader", type: "anyone" })
-    });
-    newSound.audioUrl = `https://drive.google.com/uc?export=download&id=${metaData.id}`;
-    status.textContent = "";
+  if (file) {
+    // 音声ファイルはGitHubに手動アップロード済みの想定
+    // ファイル名からGitHub Pages上のURLを生成
+    newSound.audioUrl = `https://ShinyaKiyokawa.github.io/Sound-Scape/${encodeURIComponent(file.name)}`;
+    newSound.fileName = file.name;
   }
 
   sounds.push(newSound);
