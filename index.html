@@ -113,7 +113,14 @@ const leafletMarkers = {};
 const spkSVG = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`;
 const pauSVG = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
 
-const map = L.map("map").setView([35.7135, 139.7745], 15);
+const AREAS = {
+  ueno:   { lat: 35.7135, lng: 139.7745, zoom: 15 },
+  hakata: { lat: 33.5898, lng: 130.4207, zoom: 15 },
+};
+const params = new URLSearchParams(window.location.search);
+const areaKey = params.get("area");
+const area = AREAS[areaKey] || { lat: 35.7135, lng: 139.7745, zoom: 15 };
+const map = L.map("map").setView([area.lat, area.lng], area.zoom);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
 
 function stopAll() {
